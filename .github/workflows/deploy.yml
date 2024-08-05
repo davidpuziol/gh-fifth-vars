@@ -4,30 +4,47 @@ on:
     branches:
       - main
       - dev
+env: # Nível de workflow
+  # O banco de dados possui o mesmo nome em todos os ambientes, mudando apenas a conta, por exemplo.
+  MONGODB_DB_NAME: gha-demo
 jobs:
   test:
-    environment: testing
+    #somente o job test tem acesso a estas variaveis.
+    # Crie um database 
+    env:
+      MONGODB_CLUSTER_ADDRESS: cluster0.rnritqi.mongodb.net
+      MONGODB_USERNAME: davidpuziol
+      MONGODB_PASSWORD: ZHUFzBKmqO2GfUfy
+      PORT: 8080
     runs-on: ubuntu-latest
     steps:
       - name: Get Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: ~/.npm
           key: npm-deps-${{ hashFiles('**/package-lock.json') }}
       - name: Install dependencies
         run: npm ci
+      # Preciamos que o servidor esteja rodando antes do próximo step para fazer os testes O comando expera que utilizemos uma porta. O shell nesse momento já estará com as variáveis de ambiente carregadas no job inteiro então é só referenciar diretamente.
       - name: Run server
-        run: npm start & npx wait-on http://127.0.0.1:XYZ
+      # Referenciamos assim por que estamos usando ubuntu-latest, se fosse windows era diferente.
+        run: npm start & npx wait-on http://127.0.0.1:$PORT
       - name: Run tests
         run: npm test
       - name: Output information
-        run: echo "..."
+        run: | 
+          echo "MONGODB_USERNAME: $MONGODB_USERNAME"
+          echo "MONGODB_USERNAME: {{ env.MONGODB_USERNAME }}"
+          echo "MONGODB_DB_NAME: $MONGODB_DB_NAME"
+          echo "MONGODB_DB_NAME: {{ env.MONGODB_USERNAME }}"
   deploy:
     needs: test
     runs-on: ubuntu-latest
     steps:
+      # Não temos MONGODB_USERNAME neste job, então esperamos que somente imprima MONGODB_DB_NAME que está a nível de workflow.
       - name: Output information
         run: |        
-          echo "..."
+          echo "MONGODB_USERNAME: {{ env.MONGODB_USERNAME }}"
+          echo "MONGODB_DB_NAME: $MONGODB_DB_NAME"
